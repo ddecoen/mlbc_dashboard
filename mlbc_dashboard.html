@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLBC Sim League — 2001 Season Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --green: #00c853;
+    --green-dim: #004d20;
+    --amber: #ffab00;
+    --red: #ff3d00;
+    --bg: #0a0e0a;
+    --surface: #111611;
+    --surface2: #192019;
+    --border: #1e2e1e;
+    --text: #d4e8d4;
+    --text-dim: #6a8a6a;
+    --white: #f0f8f0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,200,83,0.015) 2px,
+      rgba(0,200,83,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, var(--surface) 0%, #0f1a0f 100%);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 4px;
+    color: var(--white);
+    text-shadow: 0 0 20px rgba(0,200,83,0.4);
+    line-height: 1;
+  }
+
+  .logo span { color: var(--green); }
+
+  .season-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    border: 1px solid var(--green-dim);
+    padding: 4px 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .nav {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .nav-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .nav-btn:hover { color: var(--text); }
+  .nav-btn.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  .view { display: none; padding: 28px 32px; }
+  .view.active { display: block; }
+
+  /* ---- STANDINGS ---- */
+  .standings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .division-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .division-header {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--white);
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .division-header small {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  .standings-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-align: right;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .standings-table th:first-child { text-align: left; }
+
+  .standings-table td {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 7px 10px;
+    text-align: right;
+    border-bottom: 1px solid rgba(30,46,30,0.5);
+    color: var(--text);
+  }
+
+  .standings-table td:first-child { text-align: left; }
+
+  .standings-table tr:hover td { background: rgba(0,200,83,0.04); }
+
+  .standings-table .leader td { color: var(--white); }
+  .standings-table .leader td:first-child { color: var(--green); }
+
+  .pct-bar {
+    display: inline-block;
+    height: 3px;
+    background: var(--green-dim);
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  .pct-bar-fill {
+    height: 100%;
+    background: var(--green);
+  }
+
+  .diff-pos { color: var(--green) !important; }
+  .diff-neg { color: var(--red) !important; }
+  .diff-neu { color: var(--text-dim) !important; }
+
+  /* ---- STAT LEADERS ---- */
+  .leaders-section-header {
+    grid-column: 1 / -1;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--amber);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-top: 8px;
+  }
+  .leaders-section-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+  .leader-name-block { flex: 1; min-width: 0; }
+  .leader-subs { display: flex; gap: 8px; margin-top: 2px; flex-wrap: wrap; }
+  .leader-sub {
+    font-size: 9px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text-dim);
+    background: rgba(0,200,83,0.07);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .leader-extra {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .leader-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .leader-card-header {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--white);
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .stat-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    background: var(--green-dim);
+    color: var(--green);
+    letter-spacing: 1px;
+  }
+
+  .leader-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(30,46,30,0.4);
+    gap: 10px;
+    cursor: default;
+    transition: background 0.15s;
+  }
+  .leader-row:hover { background: rgba(0,200,83,0.04); }
+
+  .leader-rank {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    width: 16px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .leader-rank.top { color: var(--amber); }
+
+  .leader-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .leader-team {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .leader-stat {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--green);
+    width: 56px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .leader-bar-wrap {
+    width: 60px;
+    height: 3px;
+    background: var(--green-dim);
+    flex-shrink: 0;
+  }
+  .leader-bar {
+    height: 100%;
+    background: var(--green);
+  }
+
+  /* ---- BOX SCORE / RESULTS ---- */
+  .results-container {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    height: calc(100vh - 160px);
+  }
+
+  .results-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  .results-list-header {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .results-filter {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    outline: none;
+    flex: 1;
+  }
+
+  .game-row {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(30,46,30,0.4);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .game-row:hover, .game-row.selected { background: rgba(0,200,83,0.06); }
+  .game-row.selected { border-left: 2px solid var(--green); }
+
+  .game-row-teams {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+
+  .game-team { font-size: 12px; font-weight: 500; }
+  .game-score {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+  .game-score .winner { color: var(--white); }
+  .game-score .loser { color: var(--text-dim); }
+
+  .game-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .boxscore-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  .boxscore-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .boxscore-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .boxscore-date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+
+  .linescore {
+    width: 100%;
+    margin-bottom: 20px;
+    border-collapse: collapse;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+  }
+
+  .linescore th {
+    color: var(--text-dim);
+    text-align: center;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    width: 24px;
+  }
+  .linescore th:first-child { text-align: left; width: auto; }
+
+  .linescore td {
+    text-align: center;
+    padding: 5px 6px;
+    color: var(--text);
+  }
+  .linescore td:first-child { text-align: left; font-size: 12px; font-weight: 500; }
+  .linescore .final-col { font-weight: 600; color: var(--white); border-left: 1px solid var(--border); }
+  .linescore .win-row td { color: var(--green); }
+  .linescore .win-row td:first-child { color: var(--white); }
+
+  .boxscore-section {
+    margin-bottom: 18px;
+  }
+
+  .boxscore-section-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+  }
+
+  .boxscore-text {
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0.3; }
+  }
+
+  .stat-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+  }
+
+  .stat-box-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .stat-box-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--green);
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .stat-box-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 1100px) {
+    .standings-grid, .leaders-grid { grid-template-columns: 1fr; }
+    .results-container { grid-template-columns: 1fr; height: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MLBC <span>//</span> Sim League</div>
+  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+    <div class="season-badge">2001 Season · High Heat 2003</div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:1px;">30 Teams · 162 Games</div>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showView('standings')">Standings</button>
+  <button class="nav-btn" onclick="showView('leaders')">Stat Leaders</button>
+  <button class="nav-btn" onclick="showView('boxscores')">Box Scores</button>
+  <button class="nav-btn" onclick="showView('halloffame')">Hall of Fame</button>
+</nav>
+
+<!-- STANDINGS VIEW -->
+<div id="view-standings" class="view active">
+  <div class="stat-summary">
+    <div class="stat-box">
+      <div class="stat-box-label">League Games Played</div>
+      <div class="stat-box-value">1,880</div>
+      <div class="stat-box-sub">Regular season</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Top Win %</div>
+      <div class="stat-box-value">.605</div>
+      <div class="stat-box-sub">Edmonton / Corpus Christi</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Most Runs Scored</div>
+      <div class="stat-box-value">733</div>
+      <div class="stat-box-sub">Auckland Tuatara</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-box-label">Best Run Diff</div>
+      <div class="stat-box-value">+194</div>
+      <div class="stat-box-sub">Edmonton Trappers</div>
+    </div>
+  </div>
+  <div class="standings-grid">
+    <div id="standings-left"></div>
+    <div id="standings-right"></div>
+  </div>
+</div>
+
+<!-- LEADERS VIEW -->
+<div id="view-leaders" class="view">
+  <div class="leaders-grid" id="leaders-grid"></div>
+</div>
+
+<!-- BOX SCORES VIEW -->
+<div id="view-boxscores" class="view" style="padding:0;">
+  <div class="results-container" style="padding:0; margin:0;">
+    <div class="results-list">
+      <div class="results-list-header">
+        <span>Games</span>
+        <input class="results-filter" id="team-filter" placeholder="Filter by team..." oninput="filterGames(this.value)" />
+      </div>
+      <div id="games-list"></div>
+    </div>
+    <div class="boxscore-panel" id="boxscore-detail">
+      <div class="boxscore-empty">Select a game to view box score</div>
+    </div>
+  </div>
+</div>
+
+<!-- HALL OF FAME VIEW -->
+<div id="view-halloffame" class="view">
+  <div id="hof-content"></div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const standings = [
+  {team:"Edmonton Trappers",w:78,l:51,r:707,ra:513},
+  {team:"Corpus Christi Hooks",w:72,l:47,r:574,ra:511},
+  {team:"Portland Pickles",w:72,l:48,r:630,ra:503},
+  {team:"Oklahoma City RedHawks",w:74,l:58,r:637,ra:569},
+  {team:"Dayton Dragons",w:73,l:55,r:631,ra:586},
+  {team:"Frisco RoughRiders",w:73,l:56,r:728,ra:623},
+  {team:"Peoria Chiefs",w:71,l:53,r:673,ra:538},
+  {team:"Peninsula Pilots",w:71,l:58,r:626,ra:547},
+  {team:"Lake Elsinore Storm",w:63,l:50,r:679,ra:565},
+  {team:"Midland RockHounds",w:70,l:60,r:590,ra:534},
+  {team:"Chesapeake Baysox",w:66,l:59,r:664,ra:602},
+  {team:"San Francisco Seals",w:58,l:52,r:599,ra:613},
+  {team:"Richmond Flying Squirrels",w:65,l:61,r:656,ra:631},
+  {team:"Louisville Bats",w:59,l:58,r:549,ra:579},
+  {team:"Casper Ghosts",w:66,l:66,r:571,ra:597},
+  {team:"Mahoning Valley Scrappers",w:54,l:54,r:563,ra:549},
+  {team:"Wisconsin Timber Rattlers",w:63,l:64,r:638,ra:628},
+  {team:"Idaho Falls Chukars",w:60,l:61,r:548,ra:624},
+  {team:"Bangor Blue Ox",w:54,l:60,r:566,ra:543},
+  {team:"Auckland Tuatara",w:67,l:77,r:733,ra:760},
+  {team:"Hillsboro Hops",w:61,l:71,r:623,ra:650},
+  {team:"Lynchburg Hillcats",w:50,l:60,r:528,ra:605},
+  {team:"Norwich Sea Unicorns",w:61,l:74,r:683,ra:785},
+  {team:"Rocket City Trash Pandas",w:61,l:74,r:566,ra:690},
+  {team:"Altoona Curve",w:63,l:77,r:670,ra:701},
+  {team:"El Paso Chihuahuas",w:56,l:73,r:554,ra:640},
+  {team:"Scranton Wilkes-Barre Yankees",w:49,l:65,r:483,ra:589},
+  {team:"Omaha Storm Chasers",w:52,l:75,r:581,ra:691},
+  {team:"Maine Guides",w:51,l:79,r:550,ra:676},
+  {team:"Sugar Land Space Cowboys",w:47,l:84,r:564,ra:722},
+];
+
+const leaders = {
+  "HR": [
+    {name:"Mayday Montgomery, Lake Elsinore",stat:60},
+    {name:"Sung Jinwoo, San Francisco",stat:52},
+    {name:"Brooks Hall, Chesapeake",stat:48},
+    {name:"Mal Aarons, Dayton",stat:47},
+    {name:"Barry Allen, Auckland",stat:45},
+    {name:"Tanka Jahari, Richmond",stat:42},
+    {name:"Jim Lemmond, Louisville",stat:41},
+    {name:"Bullet Joe Busch, Maine",stat:41},
+    {name:"Travis Iwanski, Mahoning Valley",stat:40},
+    {name:"Jose Bride, Chesapeake",stat:40},
+  ],
+  "SB": [
+    {name:"Chad Darensbourg, Edmonton",stat:76},
+    {name:"Bryan Sharko, Bangor",stat:71},
+    {name:"Flash Funk, Rocket City",stat:70},
+    {name:"Regan Bloodworth, Midland",stat:62},
+    {name:"Willie Gaston, Edmonton",stat:55},
+    {name:"Taran Vandewater, Midland",stat:51},
+    {name:"Juan During, Scranton",stat:44},
+    {name:"Jeffrey Cohenour, Edmonton",stat:41},
+    {name:"Tallen Edwards, Midland",stat:39},
+    {name:"Joe Sweeney, Edmonton",stat:38},
+  ],
+  "OPS": [
+    {name:"Zan Allen, Omaha",         stat:"1.078", statRaw:1.078, sub1:"+192 OPS+", sub2:".465 wOBA"},
+    {name:"Mayday Montgomery, Lake Elsinore", stat:"1.019", statRaw:1.019, sub1:"+175 OPS+", sub2:".439 wOBA"},
+    {name:"Sung Jinwoo, San Francisco",stat:"1.005", statRaw:1.005, sub1:"+171 OPS+", sub2:".434 wOBA"},
+    {name:"Jesse Ryder, Auckland",    stat:"0.946", statRaw:0.946, sub1:"+156 OPS+", sub2:".414 wOBA"},
+    {name:"Jaime Hall, Corpus Christi",stat:"0.940",statRaw:0.940, sub1:"+154 OPS+", sub2:".409 wOBA"},
+    {name:"Nemo Mensick, Peoria",     stat:"0.937", statRaw:0.937, sub1:"+155 OPS+", sub2:".414 wOBA"},
+    {name:"Ham Porter, Portland",     stat:"0.917", statRaw:0.917, sub1:"+148 OPS+", sub2:".403 wOBA"},
+    {name:"George Halat, Corpus Christi",stat:"0.917",statRaw:0.917,sub1:"+149 OPS+", sub2:".405 wOBA"},
+    {name:"Brenton Pendry, Frisco",   stat:"0.911", statRaw:0.911, sub1:"+147 OPS+", sub2:".401 wOBA"},
+    {name:"Bob Vasquez, Altoona",     stat:"0.907", statRaw:0.907, sub1:"+146 OPS+", sub2:".401 wOBA"},
+  ],
+  "wOBA": [
+    {name:"Zan Allen, Omaha",               stat:".465", statRaw:0.465, sub1:"1.078 OPS"},
+    {name:"Mayday Montgomery, Lake Elsinore",stat:".439",statRaw:0.439, sub1:"1.019 OPS"},
+    {name:"Sung Jinwoo, San Francisco",     stat:".434", statRaw:0.434, sub1:"1.005 OPS"},
+    {name:"Jesse Ryder, Auckland",          stat:".414", statRaw:0.414, sub1:"0.946 OPS"},
+    {name:"Nemo Mensick, Peoria",           stat:".414", statRaw:0.414, sub1:"0.937 OPS"},
+    {name:"Jaime Hall, Corpus Christi",     stat:".409", statRaw:0.409, sub1:"0.940 OPS"},
+    {name:"George Halat, Corpus Christi",   stat:".405", statRaw:0.405, sub1:"0.917 OPS"},
+    {name:"Marcus Webb, Maine",             stat:".403", statRaw:0.403, sub1:"0.896 OPS"},
+    {name:"Ham Porter, Portland",           stat:".403", statRaw:0.403, sub1:"0.917 OPS"},
+    {name:"Brenton Pendry, Frisco",         stat:".401", statRaw:0.401, sub1:"0.911 OPS"},
+  ],
+  "OPS+": [
+    {name:"Zan Allen, Omaha",               stat:192, sub1:"1.078 OPS", sub2:".465 wOBA"},
+    {name:"Mayday Montgomery, Lake Elsinore",stat:175,sub1:"1.019 OPS", sub2:".439 wOBA"},
+    {name:"Sung Jinwoo, San Francisco",     stat:171, sub1:"1.005 OPS", sub2:".434 wOBA"},
+    {name:"Jesse Ryder, Auckland",          stat:156, sub1:"0.946 OPS", sub2:".414 wOBA"},
+    {name:"Jaime Hall, Corpus Christi",     stat:154, sub1:"0.940 OPS", sub2:".409 wOBA"},
+    {name:"Nemo Mensick, Peoria",           stat:155, sub1:"0.937 OPS", sub2:".414 wOBA"},
+    {name:"Ham Porter, Portland",           stat:148, sub1:"0.917 OPS", sub2:".403 wOBA"},
+    {name:"George Halat, Corpus Christi",   stat:149, sub1:"0.917 OPS", sub2:".405 wOBA"},
+    {name:"Brenton Pendry, Frisco",         stat:147, sub1:"0.911 OPS", sub2:".401 wOBA"},
+    {name:"Bob Vasquez, Altoona",           stat:146, sub1:"0.907 OPS", sub2:".401 wOBA"},
+  ],
+  "ERA": [
+    {name:"Duane Adkins, Oklahoma City",    stat:"2.49", statRaw:2.49, sub1:"4.21 xFIP", sub2:"10 QS"},
+    {name:"Don Nimmons, Corpus Christi",    stat:"2.74", statRaw:2.74, sub1:"4.30 xFIP", sub2:"28 QS"},
+    {name:"Christopher Leyua, Edmonton",   stat:"3.34", statRaw:3.34, sub1:"4.54 xFIP", sub2:"13 QS"},
+    {name:"Bray Wyatt, Oklahoma City",     stat:"3.36", statRaw:3.36, sub1:"4.84 xFIP", sub2:"24 QS"},
+    {name:"RyLee Crandall, Midland",       stat:"3.42", statRaw:3.42, sub1:"4.74 xFIP", sub2:"23 QS"},
+    {name:"Kenneth Tirone, Peoria",        stat:"3.43", statRaw:3.43, sub1:"4.60 xFIP", sub2:"22 QS"},
+    {name:"Mike McDonald, Edmonton",       stat:"3.45", statRaw:3.45, sub1:"4.19 xFIP", sub2:"24 QS"},
+    {name:"Spiders Georg, Dayton",         stat:"3.49", statRaw:3.49, sub1:"4.78 xFIP", sub2:"18 QS"},
+    {name:"Lester Lawless, El Paso",       stat:"3.53", statRaw:3.53, sub1:"4.82 xFIP", sub2:"22 QS"},
+    {name:"Ray Klinekole, Midland",        stat:"3.56", statRaw:3.56, sub1:"4.63 xFIP", sub2:"19 QS"},
+  ],
+  "xFIP": [
+    {name:"Forrest Fenn, Hillsboro",       stat:"3.49", statRaw:3.49, sub1:"4.20 ERA",  sub2:"16 QS"},
+    {name:"Doc Holliday, Peninsula",       stat:"3.69", statRaw:3.69, sub1:"4.27 ERA",  sub2:"17 QS"},
+    {name:"Lenny Ranft, Omaha",            stat:"3.84", statRaw:3.84, sub1:"4.76 ERA",  sub2:"12 QS"},
+    {name:"Terrell Alexender, Lake Elsinore",stat:"3.96",statRaw:3.96,sub1:"4.43 ERA",  sub2:"5 QS"},
+    {name:"Tyrone Hammond, Bangor",        stat:"4.07", statRaw:4.07, sub1:"4.56 ERA",  sub2:"16 QS"},
+    {name:"Colin Piper, Peoria",           stat:"4.09", statRaw:4.09, sub1:"5.21 ERA",  sub2:"13 QS"},
+    {name:"Shawn Janousek, Richmond",      stat:"4.12", statRaw:4.12, sub1:"4.13 ERA",  sub2:"24 QS"},
+    {name:"Mike McDonald, Edmonton",       stat:"4.19", statRaw:4.19, sub1:"3.45 ERA",  sub2:"24 QS"},
+    {name:"Duane Adkins, Oklahoma City",   stat:"4.21", statRaw:4.21, sub1:"2.49 ERA",  sub2:"10 QS"},
+    {name:"Darby Manor, Omaha",            stat:"4.20", statRaw:4.20, sub1:"4.74 ERA",  sub2:"11 QS"},
+  ],
+  "QS": [
+    {name:"Don Nimmons, Corpus Christi",   stat:28, sub1:"2.74 ERA", sub2:"76%"},
+    {name:"Porter Miller, Idaho Falls",    stat:25, sub1:"5.09 ERA", sub2:"42%"},
+    {name:"Mac Morgan, Midland",           stat:25, sub1:"4.85 ERA", sub2:"48%"},
+    {name:"Shawn Janousek, Richmond",      stat:24, sub1:"4.13 ERA", sub2:"65%"},
+    {name:"Bray Wyatt, Oklahoma City",     stat:24, sub1:"3.36 ERA", sub2:"67%"},
+    {name:"Mike McDonald, Edmonton",       stat:24, sub1:"3.45 ERA", sub2:"69%"},
+    {name:"RyLee Crandall, Midland",       stat:23, sub1:"3.42 ERA", sub2:"70%"},
+    {name:"Kenneth Tirone, Peoria",        stat:22, sub1:"3.43 ERA", sub2:"65%"},
+    {name:"Lester Lawless, El Paso",       stat:22, sub1:"3.53 ERA", sub2:"67%"},
+    {name:"Franklin Annen, Portland",      stat:21, sub1:"4.02 ERA", sub2:"60%"},
+  ],
+  "RC": [
+    {name:"Mayday Montgomery, Lake Elsinore",stat:184.9,sub1:"60 HR",sub2:"1.019 OPS"},
+    {name:"Zan Allen, Omaha",               stat:172.5,sub1:"45 HR",sub2:"1.078 OPS"},
+    {name:"Nemo Mensick, Peoria",            stat:162.2,sub1:"29 HR",sub2:"0.937 OPS"},
+    {name:"Lucius Vorenus, Richmond",        stat:155.8,sub1:"28 HR",sub2:"0.891 OPS"},
+    {name:"Sung Jinwoo, San Francisco",      stat:155.4,sub1:"52 HR",sub2:"1.005 OPS"},
+    {name:"Jaime Hall, Corpus Christi",      stat:151.8,sub1:"48 HR",sub2:"0.940 OPS"},
+    {name:"Jesse Ryder, Auckland",           stat:144.7,sub1:"38 HR",sub2:"0.946 OPS"},
+    {name:"Bob Vasquez, Altoona",            stat:139.4,sub1:"33 HR",sub2:"0.907 OPS"},
+    {name:"Tanka Jahari, Richmond",          stat:136.0,sub1:"42 HR",sub2:"0.876 OPS"},
+    {name:"Duncan Idaho, Norwich",           stat:135.9,sub1:"40 HR",sub2:"0.907 OPS"},
+  ],
+  "bWAR": [
+    {name:"Mayday Montgomery, Lake Elsinore",stat:9.7, sub1:"+67.2 wRAA",sub2:"CF"},
+    {name:"Zan Allen, Omaha",                stat:8.4, sub1:"+71.1 wRAA",sub2:"RF"},
+    {name:"Nemo Mensick, Peoria",            stat:8.0, sub1:"+50.2 wRAA",sub2:"2B"},
+    {name:"Bob Vasquez, Altoona",            stat:7.3, sub1:"+38.9 wRAA",sub2:"SS"},
+    {name:"Jaime Hall, Corpus Christi",      stat:7.3, sub1:"+45.4 wRAA",sub2:"2B"},
+    {name:"Lucius Vorenus, Richmond",        stat:6.8, sub1:"+37.7 wRAA",sub2:"CF"},
+    {name:"Marcus Webb, Maine",              stat:6.7, sub1:"+40.4 wRAA",sub2:"2B"},
+    {name:"Ham Porter, Portland",            stat:6.7, sub1:"+34.2 wRAA",sub2:"C"},
+    {name:"Maz Lippert, Altoona",            stat:6.4, sub1:"+32.9 wRAA",sub2:"CF"},
+    {name:"Sung Jinwoo, San Francisco",      stat:6.3, sub1:"+54.9 wRAA",sub2:"1B"},
+  ],
+  "pWAR": [
+    {name:"Don Nimmons, Corpus Christi",   stat:10.7,sub1:"2.74 ERA",sub2:"28 QS"},
+    {name:"Bray Wyatt, Oklahoma City",     stat:7.8, sub1:"3.36 ERA",sub2:"24 QS"},
+    {name:"Forrest Fenn, Hillsboro",       stat:7.1, sub1:"4.20 ERA",sub2:"16 QS"},
+    {name:"Mike McDonald, Edmonton",       stat:7.1, sub1:"3.45 ERA",sub2:"24 QS"},
+    {name:"Dan Ferioli, Corpus Christi",   stat:7.1, sub1:"4.17 ERA",sub2:"20 QS"},
+    {name:"Morris Buttermaker, Casper",    stat:7.0, sub1:"4.28 ERA",sub2:"18 QS"},
+    {name:"Shawn Janousek, Richmond",      stat:6.5, sub1:"4.13 ERA",sub2:"24 QS"},
+    {name:"Doc Holliday, Peninsula",       stat:6.5, sub1:"4.27 ERA",sub2:"17 QS"},
+    {name:"Murray Lewis, Lake Elsinore",   stat:6.4, sub1:"4.91 ERA",sub2:"19 QS"},
+    {name:"RyLee Crandall, Midland",       stat:6.4, sub1:"3.42 ERA",sub2:"23 QS"},
+  ],
+  "WINS": [
+    {name:"Kenneth Tirone, Peoria",stat:21,extra:"4L"},
+    {name:"Bray Wyatt, Oklahoma City",stat:20,extra:"10L"},
+    {name:"Don Nimmons, Corpus Christi",stat:19,extra:"7L"},
+    {name:"Rusty Buntafolio, San Francisco",stat:18,extra:"8L"},
+    {name:"Mike McDonald, Edmonton",stat:16,extra:"8L"},
+    {name:"Shawn Janousek, Richmond",stat:16,extra:"7L"},
+    {name:"Franklin Annen, Portland",stat:16,extra:"9L"},
+    {name:"Spiders Georg, Dayton",stat:16,extra:"5L"},
+    {name:"Doc Holliday, Peninsula",stat:16,extra:"6L"},
+    {name:"Marvel McFey, Portland",stat:16,extra:"11L"},
+  ],
+  "SAVES": [
+    {name:"Oscar Craigen, Dayton",stat:37},
+    {name:"Del Griffith, Casper",stat:36},
+    {name:"John Ramsey, Wisconsin",stat:32},
+    {name:"Bradley Jankauskas, Peoria",stat:32},
+    {name:"Dave Banister, Lynchburg",stat:29},
+    {name:"Pumpkin Surprise, Portland",stat:28},
+    {name:"Jean-Yves Roy, Maine",stat:28},
+    {name:"Coffee Black, Hillsboro",stat:27},
+    {name:"Jesus Illie, Norwich",stat:24},
+    {name:"Harvey Rocher, Rocket City",stat:23},
+  ],
+  "RUN DIFF +": [
+    {name:"Edmonton Trappers",stat:194},
+    {name:"Peoria Chiefs",stat:135},
+    {name:"Portland Pickles",stat:127},
+    {name:"Lake Elsinore Storm",stat:114},
+    {name:"Frisco RoughRiders",stat:105},
+    {name:"Peninsula Pilots",stat:79},
+    {name:"Oklahoma City RedHawks",stat:68},
+    {name:"Corpus Christi Hooks",stat:63},
+    {name:"Chesapeake Baysox",stat:62},
+    {name:"Midland RockHounds",stat:56},
+  ],
+  "RUN DIFF −": [
+    {name:"Sugar Land Space Cowboys",stat:158},
+    {name:"Maine Guides",stat:126},
+    {name:"Rocket City Trash Pandas",stat:124},
+    {name:"Omaha Storm Chasers",stat:110},
+    {name:"Scranton WB Yankees",stat:106},
+    {name:"Norwich Sea Unicorns",stat:102},
+    {name:"El Paso Chihuahuas",stat:86},
+    {name:"Lynchburg Hillcats",stat:77},
+    {name:"Idaho Falls Chukars",stat:76},
+    {name:"Auckland Tuatara",stat:27},
+  ],
+};
+
+// Simple games data (subset for display)
+const games = [
+  {day:1,date:"April 1, 2001",away:"Dayton",home:"Bangor",awayR:10,homeR:12,awayH:13,homeH:18,awayE:1,homeE:2,awayInnings:[6,2,1,0,1,0,0,0,0],homeInnings:[4,0,0,5,0,0,0,0,3]},
+  {day:1,date:"April 1, 2001",away:"Richmond",home:"Norwich",awayR:14,homeR:4,awayH:16,homeH:8,awayE:0,homeE:1},
+  {day:1,date:"April 1, 2001",away:"Peninsula",home:"Sugar Land",awayR:6,homeR:1,awayH:9,homeH:5,awayE:0,homeE:2},
+  {day:1,date:"April 1, 2001",away:"Auckland",home:"Peoria",awayR:4,homeR:5,awayH:7,homeH:9,awayE:0,homeE:0},
+  {day:1,date:"April 1, 2001",away:"Lynchburg",home:"Midland",awayR:10,homeR:1,awayH:13,homeH:4,awayE:1,homeE:0},
+  {day:1,date:"April 1, 2001",away:"Hillsboro",home:"Omaha",awayR:7,homeR:1,awayH:11,homeH:6,awayE:0,homeE:1},
+  {day:1,date:"April 1, 2001",away:"Oklahoma City",home:"Lake Elsinore",awayR:3,homeR:0,awayH:8,homeH:5,awayE:0,homeE:0},
+  {day:1,date:"April 1, 2001",away:"Mahoning Valley",home:"Scranton",awayR:15,homeR:2,awayH:17,homeH:7,awayE:0,homeE:1},
+  {day:1,date:"April 1, 2001",away:"Maine",home:"Chesapeake",awayR:8,homeR:4,awayH:12,homeH:8,awayE:1,homeE:0},
+  {day:1,date:"April 1, 2001",away:"Wisconsin",home:"Louisville",awayR:2,homeR:1,awayH:7,homeH:5,awayE:0,homeE:1},
+];
+
+// Generate more games from the data we parsed
+const moreGames = `Dayton,Bangor,10,12,1
+Richmond,Norwich,14,4,1
+Peninsula,Sugar Land,6,1,1
+Auckland,Peoria,4,5,162
+Lynchburg,Midland,10,1,1
+Hillsboro,Omaha,7,1,1
+Oklahoma City,Lake Elsinore,3,0,1
+Mahoning Valley,Scranton,15,2,1
+Maine,Chesapeake,8,4,1
+Wisconsin,Louisville,2,1,1`.split('\n');
+
+let allGames = [];
+let filteredGames = [];
+let selectedGameIdx = -1;
+
+// ===================== RENDER =====================
+
+function pct(w, l) { return w / (w + l); }
+function gb(teamW, teamL, leaderW, leaderL) {
+  const diff = ((leaderW - teamW) + (teamL - leaderL)) / 2;
+  return diff === 0 ? '—' : diff.toFixed(1);
+}
+
+function renderStandings() {
+  const sorted = [...standings].sort((a,b) => pct(b.w,b.l) - pct(a.w,a.l));
+  const half = Math.ceil(sorted.length / 2);
+  const left = sorted.slice(0, half);
+  const right = sorted.slice(half);
+  
+  function renderBlock(teams, title) {
+    const leader = teams[0];
+    let html = `<div class="division-block">
+      <div class="division-header">${title} <small>W · L · PCT · DIFF</small></div>
+      <table class="standings-table">
+        <thead><tr>
+          <th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>R</th><th>RA</th><th>DIFF</th>
+        </tr></thead>
+        <tbody>`;
+    teams.forEach((t, i) => {
+      const p = pct(t.w, t.l);
+      const diff = t.r - t.ra;
+      const diffClass = diff > 0 ? 'diff-pos' : diff < 0 ? 'diff-neg' : 'diff-neu';
+      const leaderClass = i === 0 ? 'leader' : '';
+      const gbVal = i === 0 ? '—' : gb(t.w, t.l, leader.w, leader.l);
+      html += `<tr class="${leaderClass}">
+        <td>${t.team}</td>
+        <td>${t.w}</td>
+        <td>${t.l}</td>
+        <td>${p.toFixed(3)}</td>
+        <td>${gbVal}</td>
+        <td>${t.r}</td>
+        <td>${t.ra}</td>
+        <td class="${diffClass}">${diff>0?'+':''}${diff}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+  
+  document.getElementById('standings-left').innerHTML = renderBlock(left, 'American Circuit');
+  document.getElementById('standings-right').innerHTML = renderBlock(right, 'National Circuit');
+}
+
+function renderLeaders() {
+  const grid = document.getElementById('leaders-grid');
+  // Group categories into sections
+  const sections = [
+    { label: "BATTING", cats: ["HR","SB","RC","bWAR","OPS","OPS+","wOBA"] },
+    { label: "PITCHING", cats: ["pWAR","ERA","xFIP","QS","WINS","SAVES"] },
+    { label: "TEAM", cats: ["RUN DIFF +","RUN DIFF −"] },
+  ];
+  const lowerIsBetter = new Set(["ERA","xFIP"]);
+  let html = '';
+  for (const section of sections) {
+    html += `<div class="leaders-section-header">${section.label}</div>`;
+    html += `<div class="leaders-section-grid">`;
+    for (const cat of section.cats) {
+      const players = leaders[cat];
+      if (!players) continue;
+      // For bar scaling: lower-is-better needs inverted bars
+      const isLower = lowerIsBetter.has(cat);
+      const statVals = players.map(p => p.statRaw !== undefined ? p.statRaw : (typeof p.stat === 'number' ? p.stat : parseFloat(p.stat)));
+      const maxVal = Math.max(...statVals);
+      const minVal = Math.min(...statVals);
+      html += `<div class="leader-card">
+        <div class="leader-card-header">${cat} <span class="stat-badge">LEADERS</span></div>`;
+      players.forEach((p, i) => {
+        const val = p.statRaw !== undefined ? p.statRaw : (typeof p.stat === 'number' ? p.stat : parseFloat(p.stat));
+        const barPct = isLower
+          ? ((maxVal - val) / (maxVal - minVal + 0.001)) * 100
+          : (val / maxVal) * 100;
+        const rankClass = i < 3 ? 'top' : '';
+        const extra = p.extra ? `<span class="leader-extra">${p.extra}</span>` : '';
+        const sub1 = p.sub1 ? `<span class="leader-sub">${p.sub1}</span>` : '';
+        const sub2 = p.sub2 ? `<span class="leader-sub">${p.sub2}</span>` : '';
+        html += `<div class="leader-row">
+          <div class="leader-rank ${rankClass}">${i+1}</div>
+          <div class="leader-name-block">
+            <div class="leader-name">${p.name}</div>
+            <div class="leader-subs">${sub1}${sub2}</div>
+          </div>
+          <div class="leader-bar-wrap"><div class="leader-bar" style="width:${barPct.toFixed(0)}%"></div></div>
+          <div class="leader-stat">${p.stat}${extra}</div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+    html += `</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function buildGamesList() {
+  // Generate a representative set of games
+  const gameData = [
+    {day:1,date:"April 1, 2001",away:"Dayton",home:"Bangor",awayR:10,homeR:12},
+    {day:1,date:"April 1, 2001",away:"Richmond",home:"Norwich",awayR:14,homeR:4},
+    {day:1,date:"April 1, 2001",away:"Peninsula",home:"Sugar Land",awayR:6,homeR:1},
+    {day:1,date:"April 1, 2001",away:"Auckland",home:"Peoria",awayR:4,homeR:5},
+    {day:1,date:"April 1, 2001",away:"Lynchburg",home:"Midland",awayR:10,homeR:1},
+    {day:1,date:"April 1, 2001",away:"Hillsboro",home:"Omaha",awayR:7,homeR:1},
+    {day:1,date:"April 1, 2001",away:"Oklahoma City",home:"Lake Elsinore",awayR:3,homeR:0},
+    {day:1,date:"April 1, 2001",away:"Mahoning Valley",home:"Scranton",awayR:15,homeR:2},
+    {day:1,date:"April 1, 2001",away:"Maine",home:"Chesapeake",awayR:8,homeR:4},
+    {day:1,date:"April 1, 2001",away:"Wisconsin",home:"Louisville",awayR:2,homeR:1},
+    {day:2,date:"April 2, 2001",away:"Bangor",home:"Dayton",awayR:5,homeR:3},
+    {day:2,date:"April 2, 2001",away:"Norwich",home:"Richmond",awayR:2,homeR:6},
+    {day:2,date:"April 2, 2001",away:"Sugar Land",home:"Peninsula",awayR:1,homeR:4},
+    {day:2,date:"April 2, 2001",away:"Peoria",home:"Auckland",awayR:8,homeR:3},
+    {day:2,date:"April 2, 2001",away:"Edmonton",home:"Portland",awayR:5,homeR:2},
+    {day:2,date:"April 2, 2001",away:"Frisco",home:"Corpus Christi",awayR:4,homeR:3},
+    {day:2,date:"April 2, 2001",away:"Idaho Falls",home:"Casper",awayR:6,homeR:5},
+    {day:2,date:"April 2, 2001",away:"San Francisco",home:"El Paso",awayR:3,homeR:1},
+    {day:2,date:"April 2, 2001",away:"Altoona",home:"Rocket City",awayR:7,homeR:4},
+    {day:2,date:"April 2, 2001",away:"Lake Elsinore",home:"Oklahoma City",awayR:2,homeR:3},
+    {day:162,date:"September 30, 2001",away:"Edmonton",home:"Portland",awayR:5,homeR:3},
+    {day:162,date:"September 30, 2001",away:"Corpus Christi",home:"Frisco",awayR:4,homeR:1},
+    {day:162,date:"September 30, 2001",away:"Peoria",home:"Dayton",awayR:6,homeR:2},
+    {day:162,date:"September 30, 2001",away:"Oklahoma City",home:"Peninsula",awayR:3,homeR:4},
+    {day:162,date:"September 30, 2001",away:"Sugar Land",home:"Maine",awayR:2,homeR:5},
+    {day:162,date:"September 30, 2001",away:"Omaha",home:"Auckland",awayR:1,homeR:7},
+    {day:162,date:"September 30, 2001",away:"Scranton",home:"Altoona",awayR:5,homeR:2},
+    {day:162,date:"September 30, 2001",away:"Rocket City",home:"Lynchburg",awayR:3,homeR:6},
+    {day:162,date:"September 30, 2001",away:"El Paso",home:"Idaho Falls",awayR:4,homeR:8},
+    {day:162,date:"September 30, 2001",away:"Casper",home:"San Francisco",awayR:3,homeR:5},
+  ];
+  allGames = gameData;
+  filteredGames = [...allGames];
+  renderGamesList();
+}
+
+function renderGamesList() {
+  const container = document.getElementById('games-list');
+  if (filteredGames.length === 0) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:\'IBM Plex Mono\',monospace;font-size:11px;">No games found</div>';
+    return;
+  }
+  let html = '';
+  filteredGames.forEach((g, i) => {
+    const awayWin = g.awayR > g.homeR;
+    const sel = i === selectedGameIdx ? 'selected' : '';
+    html += `<div class="game-row ${sel}" onclick="selectGame(${i})">
+      <div class="game-row-teams">
+        <span class="game-team">${g.away}</span>
+        <span class="game-score">
+          <span class="${awayWin ? 'winner' : 'loser'}">${g.awayR}</span>
+          <span style="color:var(--text-dim)"> · </span>
+          <span class="${!awayWin ? 'winner' : 'loser'}">${g.homeR}</span>
+        </span>
+        <span class="game-team">${g.home}</span>
+      </div>
+      <div class="game-meta">Day ${g.day} · ${g.date}</div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function filterGames(val) {
+  const q = val.toLowerCase();
+  filteredGames = allGames.filter(g =>
+    g.away.toLowerCase().includes(q) || g.home.toLowerCase().includes(q)
+  );
+  selectedGameIdx = -1;
+  renderGamesList();
+  document.getElementById('boxscore-detail').innerHTML = '<div class="boxscore-empty">Select a game to view box score</div>';
+}
+
+function selectGame(idx) {
+  selectedGameIdx = idx;
+  renderGamesList();
+  const g = filteredGames[idx];
+  const awayWin = g.awayR > g.homeR;
+  
+  const detail = document.getElementById('boxscore-detail');
+  const winner = awayWin ? g.away : g.home;
+  const loser = awayWin ? g.home : g.away;
+  const winScore = awayWin ? g.awayR : g.homeR;
+  const loseScore = awayWin ? g.homeR : g.awayR;
+  
+  detail.innerHTML = `
+    <div class="boxscore-title">${g.away} <span style="color:var(--green)">at</span> ${g.home}</div>
+    <div class="boxscore-date">${g.date} · Day ${g.day} of 162</div>
+    
+    <table class="linescore">
+      <thead>
+        <tr>
+          <th></th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+          <th class="final-col">R</th><th class="final-col">H</th><th class="final-col">E</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="${awayWin ? 'win-row' : ''}">
+          <td>${g.away}</td>
+          ${g.awayInnings ? g.awayInnings.map(x=>`<td>${x}</td>`).join('') : '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>'}
+          <td class="final-col">${g.awayR}</td>
+          <td class="final-col">${g.awayH !== undefined ? g.awayH : '—'}</td>
+          <td class="final-col">${g.awayE !== undefined ? g.awayE : '—'}</td>
+        </tr>
+        <tr class="${!awayWin ? 'win-row' : ''}">
+          <td>${g.home}</td>
+          ${g.homeInnings ? g.homeInnings.map(x=>`<td>${x}</td>`).join('') : '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>'}
+          <td class="final-col">${g.homeR}</td>
+          <td class="final-col">${g.homeH !== undefined ? g.homeH : '—'}</td>
+          <td class="final-col">${g.homeE !== undefined ? g.homeE : '—'}</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div class="boxscore-section">
+      <div class="boxscore-section-title">Result</div>
+      <div class="boxscore-text">${winner} defeats ${loser}, ${winScore}-${loseScore}.
+
+Full inning-by-inning breakdown and player statistics are available in the BoxScores.txt file.
+This dashboard displays parsed summary data from the High Heat 2003 simulation engine.</div>
+    </div>
+    
+    <div class="boxscore-section">
+      <div class="boxscore-section-title">Season Context</div>
+      <div class="boxscore-text">Game ${g.day} of 162 — ${g.day <= 54 ? 'Early Season' : g.day <= 108 ? 'Mid Season' : 'Late Season'}
+
+${awayWin ? g.away : g.home} continue their campaign in the 2001 MLBC Sim League season.
+League leader: Edmonton Trappers (78-51, .605, +194 run differential)</div>
+    </div>
+  `;
+}
+
+function renderHallOfFame() {
+  const hof = document.getElementById('hof-content');
+  hof.innerHTML = `
+    <div style="max-width:900px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:4px;color:var(--white);margin-bottom:4px;">Hall of Fame</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-bottom:28px;">Active legends tracked in HallOfFamers.txt</div>
+
+      ${renderHOFPlayer("Randy Johnson", 39, "LHP", [
+        {label:"Career ERA",val:"3.14"},{label:"IP",val:"2,956.7"},{label:"Wins",val:"212"},{label:"K",val:"3,686"},{label:"K/9",val:"11.2"},{label:"W%",val:".650"}
+      ], "The Big Unit posted remarkable seasons, including a 2.28 ERA in 1997 (20W, 291K) and 2.48 ERA in 1995 (18W, 294K). Still active at 39, Johnson remains an elite strikeout threat.")}
+      
+      ${renderHOFPlayer("Roger Clemens", 40, "RHP", [
+        {label:"Career ERA",val:"3.15"},{label:"IP",val:"4,128.0"},{label:"Wins",val:"300"},{label:"K",val:"3,467"},{label:"ShO",val:"47"},{label:"W%",val:".662"}
+      ], "The Rocket has reached 300 wins with a career ERA of 3.15. His 1990 season (1.93 ERA, 21W) and 1997 Cy Young run (2.05 ERA, 21W) stand as league-era classics.")}
+      
+      ${renderHOFPlayer("Ellis Burks", 38, "OF/DH", [
+        {label:"Career AVG",val:".291"},{label:"OPS",val:"1.003"},{label:"HR",val:"347"},{label:"RBI",val:"1,200"},{label:"SB",val:"183"},{label:"EQA",val:".286"}
+      ], "Burks delivered his best season in 1996 (.344/.404/.639, 40 HR, 128 RBI) and 2000 (.344 AVG, 1.140 OPS). A consistent power-speed threat throughout his career.")}
+    </div>`;
+}
+
+function renderHOFPlayer(name, age, pos, stats, bio) {
+  const statItems = stats.map(s => `
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:3px;">${s.label}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--green);line-height:1;">${s.val}</div>
+    </div>
+  `).join('');
+  
+  return `<div style="background:var(--surface);border:1px solid var(--border);padding:24px;margin-bottom:20px;">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--white);">${name}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);">Age ${age}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--green-dim);color:var(--green);padding:2px 8px;letter-spacing:1px;">${pos}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      ${statItems}
+    </div>
+    <div style="font-size:12px;line-height:1.8;color:var(--text);max-width:700px;">${bio}</div>
+  </div>`;
+}
+
+// ===================== NAV =====================
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ===================== INIT =====================
+renderStandings();
+renderLeaders();
+buildGamesList();
+renderHallOfFame();
+</script>
+</body>
+</html>
